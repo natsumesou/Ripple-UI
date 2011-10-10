@@ -36,118 +36,105 @@ describe("phonegap_plugins", function () {
 
     });
 
-    it("can create a plugin", function () {
+    it("can crate plugin", function () {
         var obj = {
-                name: "Weather",
-                action: "get",
-                result: '{"tokyo":"sunny","sapporo":"cloudy"}'
-            },
-            plugin;
-
+            name: "Weather",
+            action: "get",
+            result: '{"tokyo":"sunny","sapporo":"cloudy"}'
+        },
         plugin = plugins.create(obj);
 
         expect(plugin.name).toEqual(obj.name);
         expect(plugin.action).toEqual(obj.action);
         expect(JSON.stringify(plugin.result)).toEqual(obj.result);
     });
+    it("object can save itself", function () {
+        var plugin = plugins.create({"name": "Temperature"});
+
+        plugin.save(function (item) {
+            expect(typeof item.name).toEqual("string");
+            expect(item.name).toEqual("Temperature");
+        });
+    });
+
 
     describe("find and findAll", function () {
         it("calls error callback when no plugin fields given", function () {
-            waits(1);
             plugins.find(null, function () {}, function (error) {
                 expect(typeof error).toEqual("string");
                 expect(error).toEqual("could not find plugin named (null)");
             });
         });
 
-        it("calls error callback when given empty plugin fields array", function () {
-            waits(1);
-            plugins.find([], function () {}, function (error) {
+        it("calls error callback when given empty plugin fields", function () {
+            plugins.find({}, function () {}, function (error) {
                 expect(typeof error).toEqual("string");
                 expect(error).toEqual("could not find plugin named ()");
             });
         });
 
-        it("only return plugin when no success callback given", function () {
-            waits(1);
-            plugin = plugins.find("Weather", undefined, function () {});
-            expect(typeof plugin).toEqual("object");
-        });
-
-        it("returns object in success callback", function () {
-            waits(1);
-            plugins.find("Weather", function (items) {
+        it("returns array in success callback", function () {
+            plugins.find({name:"Weather"}, function (items) {
                 expect(typeof items).toEqual("object");
             });
         });
 
-        it("returns array of plugins", function () {
+        it("return array of plugins", function () {
             var data = [new Plugin(), new Plugin()];
-            data[0].name = "HogePlugin";
-            data[1].name = "FubaPlugin";
+            data[0].name = "Weather";
+            data[0].action = "get";
+            data[1].name = "Weahter";
+            data[1].action = "set";
 
             _pluginDB.splice.apply(_pluginDB, [0, data.length].concat(data));
 
             waits(1);
-            var _plugins = plugins.findAll();
-            expect(_plugins.length).toEqual(2);
-            expect(_plugins[0].name).toEqual("HogePlugin");
-            expect(_plugins[1].name).toEqual("FubaPlugin");
+            plugins.find({"name":"Weather"}, function (items) {
+                expect(typeof items).toEqual("object");
+                expect(items.length).toEqual(2);
+                expect(items[0].name).toEqual("Weather");
+                expect(items[0].action).toEqual("get");
+                expect(items[1].action).toEqual("set");
+            }, function () {});
         });
 
         it("return empty array", function () {
-            var _plugins = plugins.findAll();
-            expect(_plugins.length).toEqual(0);
+            var items = plugins.findAll();
+            expect(items.length).toEqual(0);
         });
 
         it("return added array", function () {
             var data = [new Plugin(), new Plugin()];
-            data[0].name = "HogePlugin";
-            data[1].name = "FubaPlugin";
+            data[0].name = "hoge";
+            data[1].name = "fuba";
 
             _pluginDB.splice.apply(_pluginDB, [0, data.length].concat(data));
 
             waits(1);
-            var _plugins = plugins.findAll();
-            expect(_plugins.length).toEqual(2);
+            var items = plugins.findAll();
+            expect(items.length).toEqual(2);
         });
     });
 
     describe("save", function () {
-        it("can save itself", function () {
-            var plugin = plugins.create({"name": "Weather"});
-
-            // hmm, not 100% assertive
-            s.mock(db)
-                .expects("saveObject").once()
-                .withArgs("phonegap-plugins");
-
-            _pluginDB.splice.apply(_pluginDB, [0, 1]);
-
-            waits(1);
-            plugin.save(function (item) {
-                expect(typeof item.name).toEqual("string");
-            });
-        });
-
         it("updates an existing plugin if a plugin with the same id already exists", function () {
-            var plugin = plugins.create({
-                "name": "Weather",
-                "action": "hoge"
-            });
+            var data = [new Plugin()];
+            data[0].name = "Weather";
+            data[0].action = "get";
 
-            s.mock(db)
-                .expects("saveObject").once()
-                .withArgs("phonegap-plugins", [plugin]);
-
-            _pluginDB.splice.apply(_pluginDB, [0, 1, plugin]);
+            _pluginDB.splice.apply(_pluginDB, [0, data.length].concat(data));
 
             waits(1);
-            plugin["action"] = "fuba";
-            plugin.save(function (items) {
-                expect(items.action).toEqual("fuba");
-                expect(items.name).toEqual(plugin.name);
-            }, s.mock().never());
+            plugins.find({name: "Weather", action:"get"}, function (items) {
+                plugin = items[0];
+                plugin.result = '{"test":"test object"}';
+                plugin.save(function (items) {
+                    expect(items.length).toEqual(1);
+                    expect(items[0].name).toEqual("Weather");
+                    expect(items[0].action).toEqual("get");
+                    expect(items[0].result.test).toEqual("test object");
+                }, function () {});
+            }, function () {});
         });
     });
 
@@ -176,8 +163,8 @@ describe("phonegap_plugins", function () {
 
             waits(1);
             plugins.removeAll();
-            _plugins = plugins.findAll();
-            expect(_plugins.length).toEqual(0);
+            items = plugins.findAll();
+            expect(items.length).toEqual(0);
         });
     });
 
